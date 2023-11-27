@@ -5,41 +5,29 @@ import ComicForm from "./components/ComicForm";
 import ComicPanel from "./components/ComicPanel";
 import SpeechBubble from "./components/SpeechBubble";
 
-const makeApiCall = async (text) => {
-  const apiUrl =
-    "https://xdwvg9no7pefghrn.us-east-1.aws.endpoints.huggingface.cloud";
-  const apiKey =
-    "VknySbLLTUjbxXAXCjyfaFIPwUTCeRXbFSOjwRiCxsxFyhbnGjSFalPKrpvvDAaPVzWEevPljilLVDBiTzfIbWFdxOkYJxnOPoHhkkVGzAknaOulWggusSFewzpqsNWM";
 
-  try {
-    const response = await axios.post(apiUrl, {
-      headers: {
-        Accept: "image/png",
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({ inputs: text }),
-    });
-
-    if (response.status !== 200) {
-      console.error("Error generating comic. Status:", response.status);
-      throw new Error("Error generating comic");
-    }
-    
-    
-    const imageBytes = await response.arrayBuffer();
-    const imageBlob = new Blob([imageBytes], { type: "image/png" });
-    const imageURL = URL.createObjectURL(imageBlob);
-
-    return imageURL;
-  } catch (error) {
-    console.error("Error generating comic:", error.message);
-    throw new Error("Error generating comic");
-  }
+const makeApiCall = async (data) => {
+  data = {"inputs" : data}
+  console.log("called api");
+  const response = await fetch(
+      "https://xdwvg9no7pefghrn.us-east-1.aws.endpoints.huggingface.cloud",
+      {
+          headers: {
+              "Accept": "image/png",
+              "Authorization": "Bearer VknySbLLTUjbxXAXCjyfaFIPwUTCeRXbFSOjwRiCxsxFyhbnGjSFalPKrpvvDAaPVzWEevPljilLVDBiTzfIbWFdxOkYJxnOPoHhkkVGzAknaOulWggusSFewzpqsNWM",
+              "Content-Type": "application/json"
+          },
+          method: "POST",
+          body: JSON.stringify(data),
+      }
+  );
+  console.log("response", response);
+  const result = await response.blob();
+  const imageURL = URL.createObjectURL(result);
+  return imageURL;
 };
 
 const App = () => {
-  const [comicPanels, setComicPanels] = useState([]);
   const [speechBubbles, setSpeechBubbles] = useState([]);
   const [showComicForm, setShowComicForm] = useState(false);
   const [status, setStatus] = useState(Array(10).fill(false));
@@ -57,9 +45,14 @@ const App = () => {
 
       textInputs.map(async (text, index) => {
         if(!text) return;
-        status[index] = true;
+        let stat = [...status];
+        stat[index] = true;
+        setStatus(stat);
+        console.log("loading");
         const imageURL = await makeApiCall(text);
-        status[index] = false;
+        stat[index] = false;
+        setStatus(stat);
+        console.log("Unloading");
         images = [...ComicImages];
         images[index] = imageURL;
         setComicImages(images);
@@ -107,18 +100,6 @@ const App = () => {
           {showComicForm && (
             <section ref={comicFormRef} className="comic-form-section">
               <ComicForm onSubmit={handleComicSubmit} status={status}/>
-              <div className="comic-display">
-                {comicPanels.map((imageUrl, index) => (
-                  <ComicPanel key={index} imageUrl={imageUrl} />
-                ))}
-                {speechBubbles.map((bubble, index) => (
-                  <SpeechBubble
-                    key={index}
-                    text={bubble.text}
-                    position={bubble.position}
-                  />
-                ))}
-              </div>
             </section>
           )}
         </>
